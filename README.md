@@ -56,10 +56,10 @@ class MyExecutor : MessageExecutor
 
 void main()
 {
-	auto server = MessageTransportServer;
+    auto server = MessageTransportServer;
 
-	server.addTransport(new TcpTransport(9001));
-	server.addTransport(new WebsocketProtocol("ws://localhost:9002/test"));
+    server.addTransport(new TcpTransport(9001));
+    server.addTransport(new WebsocketProtocol("ws://localhost:9002/test"));
 
     server.addService(MyService);
 
@@ -93,16 +93,16 @@ class MyExecutor : MessageExecutor
 
 void main()
 {
-	auto client = MessageTransportClient;
+    auto client = MessageTransportClient;
 
-	client.transport(new WebsocketTransport("ws://msgtrans.huntlabs.net:9002/test")).connect().codec(new ProtobufCodec).keepAlive();
+    client.transport(new WebsocketTransport("ws://msgtrans.huntlabs.net:9002/test")).connect().codec(new ProtobufCodec).keepAlive();
     
     client.addExecutor(new MyExecutor);
 
     auto message = new HelloMessage;
     message.name = "zoujiaqing";
 
-	client.send(message);
+    client.send(message);
 
     while (client.alive())
     {
