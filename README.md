@@ -12,8 +12,6 @@ module app.message.HelloMessage;
 
 class HelloMessage
 {
-    int messageId = 10001;
-
     string name;
 }
 ```
@@ -24,8 +22,6 @@ module app.message.WelcomeMessage;
 
 class WelcomeMessaage
 {
-    int messageId = 20001;
-
     string welcome;
 }
 ```
@@ -50,7 +46,7 @@ class MyExecutor : MessageExecutor
         auto welcomeMessage = new WelcomeMessage;
         welcomeMessage.welcome = "Welcome " ~ helloMessage.name;
 
-        ctx.send(welcomeMessage);
+        ctx.send(20001, welcomeMessage);
     }
 }
 
@@ -61,9 +57,9 @@ void main()
     server.addTransport(new TcpTransport(9001));
     server.addTransport(new WebsocketProtocol("ws://localhost:9002/test"));
 
-    server.addService(MyService);
+    server.addExecutor(MyExecutor);
 
-    server.codec(new ProtobufCodec).keepAliveAckTimeout(60.seconds).start().block();
+    server.codec(new CustomCodec).keepAliveAckTimeout(60.seconds).start().block();
 }
 ```
 
@@ -95,14 +91,14 @@ void main()
 {
     auto client = MessageTransportClient;
 
-    client.transport(new WebsocketTransport("ws://msgtrans.huntlabs.net:9002/test")).connect().codec(new ProtobufCodec).keepAlive();
+    client.transport(new WebsocketTransport("ws://msgtrans.huntlabs.net:9002/test")).connect().codec(new CustomCodec).keepAlive();
     
     client.addExecutor(new MyExecutor);
 
     auto message = new HelloMessage;
     message.name = "zoujiaqing";
 
-    client.send(message);
+    client.send(10001, message);
 
     while (client.alive())
     {
