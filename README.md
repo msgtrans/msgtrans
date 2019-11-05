@@ -1,8 +1,8 @@
 ## MsgTrans
-description for MsgTrans protocol.
+Description for MsgTrans protocol.
 
 ## Usage
-MsgTrans uses TCP / Websockt / UDP as the transport layer.
+MsgTrans uses TCP / Websockt / UDP( QUIC or Aeron ) as the transport layer.
 
 ## Example for message define
 
@@ -26,11 +26,22 @@ class WelcomeMessaage
 }
 ```
 
+Defined messages:
+```D
+module app.message.defined;
+
+enum MESSAGE {
+    HELLO = 10001,
+    WELCOME = 20001
+}
+```
+
 ## Example for server
 
 ```D
 import msgtrans;
 
+import app.message.defined;
 import app.message.HelloMessage;
 import app.message.WelcomeMessage;
 
@@ -38,7 +49,7 @@ import std.datetime : seconds;
 
 class MyExecutor : MessageExecutor
 {
-    @MessageId(10001)
+    @MessageId(MESSAGE.HELLO)
     void hello(Context ctx, Object msg)
     {
         auto helloMessage = cast(HelloMessage) msg;
@@ -46,7 +57,7 @@ class MyExecutor : MessageExecutor
         auto welcomeMessage = new WelcomeMessage;
         welcomeMessage.welcome = "Welcome " ~ helloMessage.name;
 
-        ctx.send(20001, welcomeMessage);
+        ctx.send(MESSAGE.WELCOME, welcomeMessage);
     }
 }
 
@@ -55,7 +66,7 @@ void main()
     auto server = MessageTransportServer;
 
     server.addTransport(new TcpTransport(9001));
-    server.addTransport(new WebsocketProtocol("ws://localhost:9002/test"));
+    server.addTransport(new WebsocketTransport(9002, "/test"));
 
     server.addExecutor(MyExecutor);
 
@@ -68,20 +79,18 @@ void main()
 ```D
 import msgtrans;
 
+import app.message.defined;
 import app.message.HelloMessage;
 import app.message.WelcomeMessage;
 
-import std.stdio : writeln;
-import std.datetime : seconds;
-
-import core.thread : sleep;
-
 class MyExecutor : MessageExecutor
 {
-    @MessageId(20001)
+    @MessageId(MESSAGE.WELCOME)
     void welcome(Context ctx, Object msg)
     {
         auto message = cast(WelcomeMessage) msg;
+
+        import std.stdio : writeln;
 
         writeln(message.welcome);
     }
@@ -91,18 +100,17 @@ void main()
 {
     auto client = MessageTransportClient;
 
-    client.transport(new WebsocketTransport("ws://msgtrans.huntlabs.net:9002/test")).connect().codec(new CustomCodec).keepAlive();
-    
+    client.transport(new WebsocketTransport("ws://msgtrans.huntlabs.net:9002/test"));
+
     client.addExecutor(new MyExecutor);
+
+    client.codec(new CustomCodec).keepAlive().connect();
 
     auto message = new HelloMessage;
     message.name = "zoujiaqing";
 
-    client.send(10001, message);
+    client.send(MESSAGE.HELLO, message);
 
-    while (client.alive())
-    {
-        Thread.sleep(5.seconds);
-    }
+    client.block();
 }
 ```
