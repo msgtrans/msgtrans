@@ -50,14 +50,13 @@ import std.datetime : seconds;
 class MyExecutor : MessageExecutor
 {
     @MessageId(MESSAGE.HELLO)
-    void hello(Context ctx, Object msg)
+    void hello(Context ctx, ubyte[] data)
     {
-        auto helloMessage = cast(HelloMessage) msg;
+        string msg = cast(string) data;
 
-        auto welcomeMessage = new WelcomeMessage;
-        welcomeMessage.welcome = "Welcome " ~ helloMessage.name;
+        string welcome = "Welcome " ~ msg;
 
-        ctx.send(MESSAGE.WELCOME, welcomeMessage);
+        ctx.send(MESSAGE.WELCOME, welcome.dup);
     }
 }
 
