@@ -1,5 +1,5 @@
 ## MsgTrans
-Description for MsgTrans protocol.
+Description for MsgTrans (Message transmission framework) protocol.
 
 ## Usage
 MsgTrans uses TCP / Websockt / UDP( QUIC or Aeron ) as the transport layer.
@@ -45,31 +45,36 @@ import app.message.defined;
 import app.message.HelloMessage;
 import app.message.WelcomeMessage;
 
-import std.datetime : seconds;
+import hunt.logging;
+import hunt.util.serialize;
 
 class MyExecutor : MessageExecutor
 {
     @MessageId(MESSAGE.HELLO)
-    void hello(Context ctx, ubyte[] data)
+    void hello(TransportContext ctx, MessageBuffer buffer)
     {
-        string msg = cast(string) data;
 
-        string welcome = "Welcome " ~ msg;
+        HelloMessage message = unserialize!HelloMessage(cast(const byte[])buffer.data);
 
-        ctx.send(MESSAGE.WELCOME, welcome.dup);
+        WelcomeMessage welcomeMessage = new WelcomeMessage;
+        welcomeMessage.welcome = "Hello " ~ message.name;
+
+        ctx.session().send(new MessageBuffer(MESSAGE.WELCOME, cast(ubyte[])serialize(welcomeMessage)));
     }
 }
 
 void main()
 {
-    auto server = MessageTransportServer;
+    MessageTransportServer server = new MessageTransportServer("test");
 
-    server.addTransport(new TcpTransport(9001));
-    server.addTransport(new WebsocketTransport(9002, "/test"));
+    server.addChannel(new TcpServerChannel(9001));
+    server.addChannel(new WebSocketServerChannel(9002, "/test"));
 
-    server.addExecutor(MyExecutor);
+    server.acceptor((TransportContext ctx) {
+        infof("New connection: id=%d", ctx.id());
+    });
 
-    server.codec(new CustomCodec).keepAliveAckTimeout(60.seconds).start().block();
+    server.start();
 }
 ```
 
@@ -82,33 +87,37 @@ import app.message.defined;
 import app.message.HelloMessage;
 import app.message.WelcomeMessage;
 
-class MyExecutor : MessageExecutor
+import hunt.logging;
+import hunt.util.Serialize;
+
+@TransportClient("test")
+class MyExecutor : AbstractExecutor!(MyExecutor)
 {
     @MessageId(MESSAGE.WELCOME)
-    void welcome(Context ctx, Object msg)
+    void welcome(TransportContext ctx, MessageBuffer buffer)
     {
-        auto message = cast(WelcomeMessage) msg;
+        auto message = unserialize!WelcomeMessage(cast(byte[]) buffer.data);
 
-        import std.stdio : writeln;
-
-        writeln(message.welcome);
+        infof("message: %s", message.welcome);
     }
 }
 
 void main()
 {
-    auto client = MessageTransportClient;
-
-    client.transport(new WebsocketTransport("ws://msgtrans.huntlabs.net:9002/test"));
+    MessageTransportClient client = new MessageTransportClient("test");
 
     client.addExecutor(new MyExecutor);
 
-    client.codec(new CustomCodec).keepAlive().connect();
+    client.channel(new TcpClientChannel("127.0.0.1", 9001)).connect();
 
     auto message = new HelloMessage;
     message.name = "zoujiaqing";
 
-    client.send(MESSAGE.HELLO, message);
+    auto buffer = new MessageBuffer;
+    buffer.id = MESSAGE.HELLO;
+    buffer.data = cast(ubyte[]) serialize(message);
+
+    client.send(buffer);
 
     client.block();
 }
