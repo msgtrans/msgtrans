@@ -60,7 +60,7 @@ void main()
         infof("New connection: id=%d", ctx.id());
     });
 
-    server.start();
+    server.start().block();
 }
 
 // Mark this executor as a "test" service
@@ -106,9 +106,7 @@ void main()
     buffer.id = MESSAGE.HELLO;
     buffer.data = cast(ubyte[]) serialize(message);
 
-    client.send(buffer);
-
-    client.block();
+    client.send(buffer).block();
 }
 
 // Mark this executor for "test" client
