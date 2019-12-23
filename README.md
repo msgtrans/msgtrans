@@ -48,8 +48,24 @@ import app.message.WelcomeMessage;
 import hunt.logging;
 import hunt.util.serialize;
 
-class MyExecutor : MessageExecutor
+void main()
 {
+    // Create a service object alias "test"
+    MessageTransportServer server = new MessageTransportServer("test");
+
+    server.addChannel(new TcpServerChannel(9001));
+    server.addChannel(new WebSocketServerChannel(9002, "/test"));
+
+    server.acceptor((TransportContext ctx) {
+        infof("New connection: id=%d", ctx.id());
+    });
+
+    server.start();
+}
+
+// Mark this executor as a "test" service
+@TransportServer("test")
+class MyExecutor : AbstractExecutor!(MyExecutor)
     @MessageId(MESSAGE.HELLO)
     void hello(TransportContext ctx, MessageBuffer buffer)
     {
@@ -61,20 +77,6 @@ class MyExecutor : MessageExecutor
 
         ctx.session().send(new MessageBuffer(MESSAGE.WELCOME, cast(ubyte[])serialize(welcomeMessage)));
     }
-}
-
-void main()
-{
-    MessageTransportServer server = new MessageTransportServer("test");
-
-    server.addChannel(new TcpServerChannel(9001));
-    server.addChannel(new WebSocketServerChannel(9002, "/test"));
-
-    server.acceptor((TransportContext ctx) {
-        infof("New connection: id=%d", ctx.id());
-    });
-
-    server.start();
 }
 ```
 
@@ -90,23 +92,10 @@ import app.message.WelcomeMessage;
 import hunt.logging;
 import hunt.util.Serialize;
 
-@TransportClient("test")
-class MyExecutor : AbstractExecutor!(MyExecutor)
-{
-    @MessageId(MESSAGE.WELCOME)
-    void welcome(TransportContext ctx, MessageBuffer buffer)
-    {
-        auto message = unserialize!WelcomeMessage(cast(byte[]) buffer.data);
-
-        infof("message: %s", message.welcome);
-    }
-}
-
 void main()
 {
+    // Create a client object alias "test"
     MessageTransportClient client = new MessageTransportClient("test");
-
-    client.addExecutor(new MyExecutor);
 
     client.channel(new TcpClientChannel("127.0.0.1", 9001)).connect();
 
@@ -120,5 +109,18 @@ void main()
     client.send(buffer);
 
     client.block();
+}
+
+// Mark this executor for "test" client
+@TransportClient("test")
+class MyExecutor : AbstractExecutor!(MyExecutor)
+{
+    @MessageId(MESSAGE.WELCOME)
+    void welcome(TransportContext ctx, MessageBuffer buffer)
+    {
+        auto message = unserialize!WelcomeMessage(cast(byte[]) buffer.data);
+
+        infof("message: %s", message.welcome);
+    }
 }
 ```
